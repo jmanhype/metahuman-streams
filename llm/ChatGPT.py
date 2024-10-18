@@ -6,11 +6,9 @@ class ChatGPT():
         openai.api_key = api_key
         self.model_path = model_path
 
-    def chat(self, message):
-        response = openai.ChatCompletion.create(
+    def chat(self, messages):
+        response = openai.chat.completions.create(
             model=self.model_path,
-            messages=[
-                {"role": "user", "content": message}
-            ]
+            messages=messages
         )
-        return response['choices'][0]['message']['content']
+        return response.choices[0].message.content

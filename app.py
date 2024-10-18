@@ -13,7 +13,7 @@ import numpy as np
 from threading import Thread,Event
 import multiprocessing
 
-from aiohttp import web
+from aiohttp import web, WSMsgType
 import aiohttp
 import aiohttp_cors
 from aiortc import RTCPeerConnection, RTCSessionDescription
@@ -53,11 +53,28 @@ def echo_socket(ws):
 
 def llm_response(message):
     from llm.LLM import LLM
-    # llm = LLM().init_model('Gemini', model_path= 'gemini-pro',api_key='Your API Key', proxy_url=None)
-    # llm = LLM().init_model('ChatGPT', model_path= 'gpt-3.5-turbo',api_key='Your API Key')
-    llm = LLM().init_model('VllmGPT', model_path= 'THUDM/chatglm3-6b')
-    response = llm.chat(message)
+    import os
+
+    # Read the system prompt
+    with open('llm/system_prompt.md', 'r') as f:
+        system_prompt = f.read()
+
+    # Initialize the LLM with the system prompt
+    llm = LLM().init_model('ChatGPT', model_path='gpt-4-turbo', api_key='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')
+    
+    # Create a list of messages including the system prompt and user message
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": message}
+    ]
+    
+    # Get the response from the LLM
+    response = llm.chat(messages)
     print(response)
+    
+    # Use the selected TTS system to convert the response to audio
+    ttsreal.txt_to_audio(response)
+    
     return response
 
 @sockets.route('/humanchat')
@@ -83,64 +100,52 @@ def chat_socket(ws):
 #####webrtc###############################
 pcs = set()
 
-#@app.route('/offer', methods=['POST'])
 async def offer(request):
     params = await request.json()
     offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
 
-    sessionid = len(nerfreals)
-    for index,value in enumerate(statreals):
-        if value == 0:
-            sessionid = index
-            break
-    if sessionid>=len(nerfreals):
-        print('reach max session')
-        return -1
-    statreals[sessionid] = 1
-    
     pc = RTCPeerConnection()
     pcs.add(pc)
 
     @pc.on("connectionstatechange")
     async def on_connectionstatechange():
-        print("Connection state is %s" % pc.connectionState)
+        print(f"Connection state is {pc.connectionState}")
         if pc.connectionState == "failed":
             await pc.close()
             pcs.discard(pc)
-            statreals[sessionid] = 0
-        if pc.connectionState == "closed":
-            pcs.discard(pc)
-            statreals[sessionid] = 0
 
-    player = HumanPlayer(nerfreals[sessionid])
-    audio_sender = pc.addTrack(player.audio)
-    video_sender = pc.addTrack(player.video)
+    player = HumanPlayer(nerfreals[0])  # Assuming you want to use the first nerfreal
+    pc.addTrack(player.audio)
+    pc.addTrack(player.video)
 
     await pc.setRemoteDescription(offer)
-
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
 
-    #return jsonify({"sdp": pc.localDescription.sdp, "type": pc.localDescription.type})
-
     return web.Response(
         content_type="application/json",
-        text=json.dumps(
-            {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type, "sessionid":sessionid}
-        ),
+        text=json.dumps({
+            "sdp": pc.localDescription.sdp,
+            "type": pc.localDescription.type
+        })
     )
 
 async def human(request):
     params = await request.json()
+    print(f"Received request: {params}")
 
-    sessionid = params.get('sessionid',0)
+    sessionid = params.get('sessionid', 0)
     if params.get('interrupt'):
         nerfreals[sessionid].pause_talk()
 
-    if params['type']=='echo':
+    if params['type'] == 'echo':
+        print(f"Echoing text: {params['text']}")
         nerfreals[sessionid].put_msg_txt(params['text'])
-    elif params['type']=='chat':
-        res=await asyncio.get_event_loop().run_in_executor(None, llm_response(params['text']))                         
+    elif params['type'] == 'chat':
+        print(f"Chatting with text: {params['text']}")
+        res = await asyncio.get_event_loop().run_in_executor(None, lambda: llm_response(params['text']))
+        print(f"LLM response: {res}")
+        # The TTS conversion is now handled within llm_response, so we don't need to call it here
         nerfreals[sessionid].put_msg_txt(res)
 
     return web.Response(
@@ -195,7 +200,24 @@ async def run(push_url):
     await pc.setLocalDescription(await pc.createOffer())
     answer = await post(push_url,pc.localDescription.sdp)
     await pc.setRemoteDescription(RTCSessionDescription(sdp=answer,type='answer'))
-##########################################
+
+async def websocket_handler(request):
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+
+    async for msg in ws:
+        if msg.type == WSMsgType.TEXT:
+            if msg.data == 'close':
+                await ws.close()
+            else:
+                res = llm_response(msg.data)
+                await ws.send_str(res)
+        elif msg.type == WSMsgType.ERROR:
+            print('WebSocket connection closed with exception %s' % ws.exception())
+
+    print('WebSocket connection closed')
+    return ws
+
 # os.environ['MKL_SERVICE_FORCE_INTEL'] = '1'
 # os.environ['MULTIPROCESSING_METHOD'] = 'forkserver'                                                    
 if __name__ == '__main__':
@@ -322,12 +344,11 @@ if __name__ == '__main__':
 
     parser.add_argument('--customvideo_config', type=str, default='')
 
-    parser.add_argument('--tts', type=str, default='edgetts') #xtts gpt-sovits
+    parser.add_argument('--tts', type=str, default='edgetts')  # Options: edgetts, xtts, gpt-sovits
     parser.add_argument('--REF_FILE', type=str, default=None)
     parser.add_argument('--REF_TEXT', type=str, default=None)
-    parser.add_argument('--TTS_SERVER', type=str, default='http://127.0.0.1:9880') # http://localhost:9000
-    # parser.add_argument('--CHARACTER', type=str, default='test')
-    # parser.add_argument('--EMOTION', type=str, default='default')
+    parser.add_argument('--TTS_SERVER', type=str, default='http://127.0.0.1:9880')
+    parser.add_argument('--LANGUAGE', type=str, default='en')  # Add this line for language option
 
     parser.add_argument('--model', type=str, default='ernerf') #musetalk wav2lip
 
@@ -394,6 +415,18 @@ if __name__ == '__main__':
         for _ in range(opt.max_session):
             nerfreal = NeRFReal(opt, trainer, test_loader)
             nerfreals.append(nerfreal)
+
+        if opt.tts == 'edgetts':
+            from ttsreal import EdgeTTS
+            ttsreal = EdgeTTS(opt, nerfreal)
+        elif opt.tts == 'xtts':
+            from ttsreal import XTTS
+            ttsreal = XTTS(opt, nerfreal)
+        elif opt.tts == 'gpt-sovits':
+            from ttsreal import VoitsTTS
+            ttsreal = VoitsTTS(opt, nerfreal)
+        else:
+            raise ValueError(f"Unknown TTS type: {opt.tts}")
     elif opt.model == 'musetalk':
         from musereal import MuseReal
         print(opt)
@@ -419,6 +452,7 @@ if __name__ == '__main__':
     #############################################################################
     appasync = web.Application()
     appasync.on_shutdown.append(on_shutdown)
+    appasync.router.add_get('/humanchat', websocket_handler)
     appasync.router.add_post("/offer", offer)
     appasync.router.add_post("/human", human)
     appasync.router.add_post("/set_audiotype", set_audiotype)
@@ -445,14 +479,6 @@ if __name__ == '__main__':
         if opt.transport=='rtcpush':
             loop.run_until_complete(run(opt.push_url))
         loop.run_forever()    
-    #Thread(target=run_server, args=(web.AppRunner(appasync),)).start()
     run_server(web.AppRunner(appasync))
-
-    #app.on_shutdown.append(on_shutdown)
-    #app.router.add_post("/offer", offer)
-
-    # print('start websocket server')
-    # server = pywsgi.WSGIServer(('0.0.0.0', 8000), app, handler_class=WebSocketHandler)
-    # server.serve_forever()
     
     

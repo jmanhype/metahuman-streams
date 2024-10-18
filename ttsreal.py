@@ -112,34 +112,38 @@ class EdgeTTS(BaseTTS):
 
 ###########################################################################################
 class VoitsTTS(BaseTTS):
-    def txt_to_audio(self,msg): 
+    def __init__(self, opt, parent):
+        super().__init__(opt, parent)
+        self.server_url = opt.TTS_SERVER
+        self.ref_file = opt.REF_FILE
+        self.ref_text = opt.REF_TEXT
+        self.language = opt.LANGUAGE
+        print(f"Initialized VoitsTTS with ref_file: {self.ref_file}, ref_text: {self.ref_text}, language: {self.language}")
+
+    def txt_to_audio(self, msg):
+        print(f"VoitsTTS received text: {msg}")
         self.stream_tts(
             self.gpt_sovits(
                 msg,
-                self.opt.REF_FILE,  
-                self.opt.REF_TEXT,
-                "zh", #en args.language,
-                self.opt.TTS_SERVER, #"http://127.0.0.1:5000", #args.server_url,
+                self.ref_file,
+                self.ref_text,
+                self.language,
+                self.server_url,
             )
         )
 
-    def gpt_sovits(self, text, reffile, reftext,language, server_url) -> Iterator[bytes]:
+    def gpt_sovits(self, text, reffile, reftext, language, server_url) -> Iterator[bytes]:
         start = time.perf_counter()
-        req={
-            'text':text,
-            'text_lang':language,
-            'ref_audio_path':reffile,
-            'prompt_text':reftext,
-            'prompt_lang':language,
-            'media_type':'raw',
-            'streaming_mode':True
+        req = {
+            'text': text,
+            'text_lang': language,
+            'ref_audio_path': reffile,
+            'prompt_text': reftext,
+            'prompt_lang': language,
+            'media_type': 'raw',
+            'streaming_mode': True
         }
-        # req["text"] = text
-        # req["text_language"] = language
-        # req["character"] = character
-        # req["emotion"] = emotion
-        # #req["stream_chunk_size"] = stream_chunk_size  # you can reduce it to get faster response, but degrade quality
-        # req["streaming_mode"] = True
+        print(f"Sending request to GPT-SoVITS server: {req}")
         res = requests.post(
             f"{server_url}/tts",
             json=req,
@@ -149,33 +153,34 @@ class VoitsTTS(BaseTTS):
         print(f"gpt_sovits Time to make POST: {end-start}s")
 
         if res.status_code != 200:
-            print("Error:", res.text)
+            print(f"Error: {res.text}")
             return
-            
+
         first = True
-        for chunk in res.iter_content(chunk_size=32000): # 1280 32K*20ms*2
+        for chunk in res.iter_content(chunk_size=32000):  # 1280 32K*20ms*2
             if first:
                 end = time.perf_counter()
                 print(f"gpt_sovits Time to first chunk: {end-start}s")
                 first = False
-            if chunk and self.state==State.RUNNING:
+            if chunk and self.state == State.RUNNING:
                 yield chunk
 
-        print("gpt_sovits response.elapsed:", res.elapsed)
+        print(f"gpt_sovits response.elapsed: {res.elapsed}")
 
-    def stream_tts(self,audio_stream):
+    def stream_tts(self, audio_stream):
+        total_chunks = 0
         for chunk in audio_stream:
-            if chunk is not None and len(chunk)>0:          
+            if chunk is not None and len(chunk) > 0:
                 stream = np.frombuffer(chunk, dtype=np.int16).astype(np.float32) / 32767
                 stream = resampy.resample(x=stream, sr_orig=32000, sr_new=self.sample_rate)
-                #byte_stream=BytesIO(buffer)
-                #stream = self.__create_bytes_stream(byte_stream)
                 streamlen = stream.shape[0]
-                idx=0
-                while streamlen >= self.chunk:
+                idx = 0
+                while streamlen >= self.chunk and self.state == State.RUNNING:
                     self.parent.put_audio_frame(stream[idx:idx+self.chunk])
                     streamlen -= self.chunk
-                    idx += self.chunk 
+                    idx += self.chunk
+                    total_chunks += 1
+        print(f"Total audio chunks processed: {total_chunks}")
 
 ###########################################################################################
 class XTTS(BaseTTS):
@@ -239,4 +244,4 @@ class XTTS(BaseTTS):
                 while streamlen >= self.chunk:
                     self.parent.put_audio_frame(stream[idx:idx+self.chunk])
                     streamlen -= self.chunk
-                    idx += self.chunk 
+                    idx += self.chunk

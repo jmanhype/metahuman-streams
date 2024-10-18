@@ -1,0 +1,73 @@
+Dashboard/components/Feature.tsx
+-------------------------------------------------------------------------------
+Line 5:
+
+const [embeddings, setEmbeddings] = useState<string>();
+
+  useEffect(() => {
+    if (embeddings) {
+      const scriptAttributes = embeddings
+        .substring(31)
+        .replace("<script ", "")
+        .replace("></script>", "")
+        .split(" ");
+
+      const chatBot = document.getElementById("customgpt_chat");
+      const script = document.createElement("script");
+      scriptAttributes.forEach((attribute: string, index: number) => {
+        let keyValuePair = attribute.split("=");
+        if (index === 1) {
+          script.setAttribute(
+            "p_id",
+            keyValuePair[1].replace("'", "").replace("'", "")
+          );
+        } else {
+          script.setAttribute(
+            keyValuePair[0],
+            keyValuePair[1].replace("'", "").replace("'", "")
+          );
+        }
+      });
+
+      script.async = false;
+      script.addEventListener("load", () => {
+        console.log("File loaded");
+      });
+      script.addEventListener("error", () => {
+        console.log("Error found");
+      });
+
+      document.body.appendChild(script);
+
+      if (chatBot) {
+        chatBot.style.visibility = "visible";
+        chatBot.style.height = "95vh";
+      }
+
+      return () => {
+        document.body.removeChild(script);
+
+        if (chatBot) {
+          const childNodes = chatBot.childNodes;
+          chatBot.removeChild(childNodes[0])
+          chatBot.removeChild(childNodes[0]);
+          chatBot.removeChild(childNodes[0]);
+        }
+      };
+    }
+  }, [embeddings]);
+
+Line 25:
+
+<button
+    className="flex items-center w-full gap-5 mt-20 mb-10 border-[1px] border-[rgba(255,255,255,0.12)] bg-[#AEA0FF] bg-opacity-[12%] rounded-full py-2 px-5"
+    onClick={() => setEmbeddings(chatBot["embed_code"])}
+    >
+        <h1 className="text-sm">Get in touch</h1>
+              
+        <AiOutlineArrowRight />
+</button>
+------------------------------------------------------------------------------------
+
+Line 30:
+<a href={(chatBot["shareable_link"] as string).replace('conversations', 'ask-me-anything').replace('api/v1/', "")} className="text-sm">Get in touch</a>

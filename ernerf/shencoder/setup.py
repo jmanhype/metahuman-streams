@@ -5,12 +5,12 @@ from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 _src_path = os.path.dirname(os.path.abspath(__file__))
 
 nvcc_flags = [
-    '-O3', '-std=c++14',
+    '-O3', '-std=c++17',
     '-U__CUDA_NO_HALF_OPERATORS__', '-U__CUDA_NO_HALF_CONVERSIONS__', '-U__CUDA_NO_HALF2_OPERATORS__',
 ]
 
 if os.name == "posix":
-    c_flags = ['-O3', '-std=c++14']
+    c_flags = ['-O3', '-std=c++17']
 elif os.name == "nt":
     c_flags = ['/O2', '/std:c++17']
 
@@ -28,6 +28,18 @@ elif os.name == "nt":
         if cl_path is None:
             raise RuntimeError("Could not locate a supported Microsoft Visual C++ installation")
         os.environ["PATH"] += ";" + cl_path
+
+'''
+Usage:
+
+pip install . # build extensions and install (copy) to PATH.
+
+Note: It's recommended to install this module manually in the project directory:
+1. Ensure you have modified this setup.py to use '-std=c++17'
+2. Run 'pip install .' in this directory
+
+After installation, running 'python app.py' should not report ModuleNotFoundError for this module.
+'''
 
 setup(
     name='shencoder', # package name, import this to use python API

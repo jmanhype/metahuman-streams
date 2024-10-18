@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/assets/enlighten_me_logo-6332dde6.svg"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enlighten Me</title>
+    <script type="module" crossorigin src="/assets/index-3de604a5.js"></script>
+    <link rel="stylesheet" href="/assets/index-30ea78ca.css">
+  </head>
+  <body>
+    <button id="customgpt_chat_popup">
+      <i class="fa-regular fa-comments fa-xl"></i>
+    </button>
+    <div id="customgpt_chat">
+      <button id="customgpt_chat_close">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div id="root"></div>
+    
+    <script
+      src="https://kit.fontawesome.com/c2d6c6ea1a.js"
+      crossorigin="anonymous"
+    ></script>
+    <script>
+      const openPopUpChatbot = (event) => {
+        document.getElementById("customgpt_chat").style.visibility = "visible";
+        document.getElementById("customgpt_chat").style.height = "95vh";
+      };
+
+      const closePopUpChatbot = (event) => {
+        document.getElementById("customgpt_chat").style.height = "0vh";
+        setTimeout(() => {
+          document.getElementById("customgpt_chat").style.visibility = "hidden";
+        }, 500);
+      };
+
+      document
+        .getElementById("customgpt_chat_popup")
+        .addEventListener("click", openPopUpChatbot);
+      document
+        .getElementById("customgpt_chat_close")
+        .addEventListener("click", closePopUpChatbot);
+    </script>
+
+    <script
+      src="https://cdn.customgpt.ai/js/embed.js"
+      div_id="customgpt_chat"
+      p_id="13163"
+      p_key="fd89c94a85158106331838e6c55ed6a5"
+    ></script>
+  </body>
+</html>
