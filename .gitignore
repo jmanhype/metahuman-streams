@@ -15,4 +15,7 @@ pretrained
 *.mp4
 .DS_Store
 workspace/log_ngp.txt
-.idea
+.ideacuda-repo-ubuntu2004-11-3-local_11.3.0-465.19.01-1_amd64.deb
+data/pretrained/ngp_kf.pth
+temp_nltk_data/
+*.zip
