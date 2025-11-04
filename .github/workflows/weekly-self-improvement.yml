@@ -1,0 +1,219 @@
+name: Weekly Self-Improvement
+
+on:
+  schedule:
+    # Run every Monday at 2:00 AM UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      focus_area:
+        description: 'Focus area for improvement'
+        required: false
+        default: 'general'
+        type: choice
+        options:
+          - general
+          - documentation
+          - code_quality
+          - dependencies
+          - performance
+          - security
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  self-improvement:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Weekly Code Quality Review
+        if: github.event_name == 'schedule' || github.event.inputs.focus_area == 'code_quality' || github.event.inputs.focus_area == 'general'
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Please perform a code quality review of this metahuman-streams project:
+
+            1. Identify any code smells, anti-patterns, or areas for refactoring
+            2. Look for unused imports, variables, or functions
+            3. Check for inconsistent code style or naming conventions
+            4. Suggest improvements for code readability and maintainability
+            5. Look for opportunities to reduce code duplication
+
+            Focus on the main Python files in the root directory and key modules.
+            Create a pull request with any improvements you can make automatically.
+
+      - name: Documentation Enhancement
+        if: github.event_name == 'schedule' || github.event.inputs.focus_area == 'documentation' || github.event.inputs.focus_area == 'general'
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Please review and enhance the documentation for this project:
+
+            1. Check README.md for clarity, completeness, and accuracy
+            2. Identify missing docstrings in Python files
+            3. Look for outdated documentation that doesn't match current code
+            4. Ensure installation instructions are clear and complete
+            5. Add or improve code comments where complex logic exists
+
+            Create a pull request with documentation improvements.
+
+      - name: Dependency Audit
+        if: github.event_name == 'schedule' || github.event.inputs.focus_area == 'dependencies' || github.event.inputs.focus_area == 'general'
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Please audit the project dependencies:
+
+            1. Review requirements.txt for outdated or vulnerable packages
+            2. Check for unused dependencies
+            3. Identify potential conflicts between package versions
+            4. Suggest updates to dependencies (but be cautious with ML/CUDA packages)
+            5. Check if there are any deprecated packages
+
+            Create an issue summarizing your findings. Only create a PR if there are
+            safe, non-breaking updates to apply.
+
+      - name: Bug Detection & Analysis
+        if: github.event_name == 'schedule' || github.event.inputs.focus_area == 'general'
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Please analyze the codebase for potential bugs and issues:
+
+            1. Look for common Python pitfalls (mutable defaults, exception handling, etc.)
+            2. Check for resource leaks (unclosed files, connections, etc.)
+            3. Identify potential race conditions or threading issues
+            4. Look for error handling gaps
+            5. Check for potential None reference errors
+
+            If you find issues, create a pull request with fixes for straightforward bugs,
+            or create issues for complex problems that need human review.
+
+      - name: Performance Analysis
+        if: github.event_name == 'schedule' || github.event.inputs.focus_area == 'performance' || github.event.inputs.focus_area == 'general'
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Please analyze the codebase for performance optimization opportunities:
+
+            1. Look for inefficient loops or algorithms
+            2. Identify redundant computations
+            3. Check for opportunities to use lazy loading
+            4. Look for memory-intensive operations that could be optimized
+            5. Identify potential bottlenecks in the streaming pipeline
+
+            Create an issue documenting your findings with specific recommendations.
+
+      - name: Security Scan
+        if: github.event.inputs.focus_area == 'security' || github.event.inputs.focus_area == 'general'
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Please perform a security review of the codebase:
+
+            1. Check for hardcoded credentials or API keys
+            2. Review input validation and sanitization
+            3. Look for potential injection vulnerabilities
+            4. Check file path handling for directory traversal risks
+            5. Review authentication and authorization logic
+
+            Create an issue for any security concerns found. Do NOT include sensitive
+            information in the issue or commit any fixes that might expose security details.
+
+      - name: Configuration & Setup Review
+        if: github.event_name == 'schedule' || github.event.inputs.focus_area == 'general'
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Please review the project configuration and setup:
+
+            1. Check if .gitignore is comprehensive and appropriate
+            2. Verify Docker configurations are optimal
+            3. Review any configuration files for best practices
+            4. Check if there are missing config files that would be helpful
+            5. Ensure environment variable usage is consistent and documented
+
+            Create a pull request with any improvements.
+
+      - name: Test Coverage Analysis
+        if: github.event.inputs.focus_area == 'general'
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Please analyze test coverage for this project:
+
+            1. Identify critical functions that lack tests
+            2. Look for test files (if any exist)
+            3. Suggest areas where tests would be most valuable
+            4. Identify edge cases that should be tested
+
+            Create an issue with recommendations for improving test coverage.
+            If there are no tests at all, suggest a testing strategy.
+
+      - name: Project Maintenance
+        if: github.event_name == 'schedule'
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Please perform general project maintenance:
+
+            1. Check for TODO/FIXME comments in code and create issues for them
+            2. Look for deprecated code that can be removed
+            3. Identify completed TODO items in README that can be checked off
+            4. Review file organization and suggest improvements
+            5. Check for inconsistencies across the codebase
+
+            Create issues or pull requests as appropriate for your findings.
+
+      - name: Summary Comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const date = new Date().toISOString().split('T')[0];
+            const body = `## 🤖 Weekly Self-Improvement Run - ${date}
+
+            The automated self-improvement workflow has completed its analysis.
+
+            **Focus Area**: ${context.payload.inputs?.focus_area || 'general (scheduled run)'}
+
+            Please check:
+            - New pull requests for automated improvements
+            - New issues for items requiring human review
+
+            This workflow helps maintain code quality, documentation, and overall project health.
+            `;
+
+            // Create a comment on the most recent open issue, or create a new one
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'maintenance',
+              per_page: 1
+            });
+
+            if (issues.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Weekly Self-Improvement Summary - ${date}`,
+                body: body,
+                labels: ['maintenance', 'automated']
+              });
+            }
