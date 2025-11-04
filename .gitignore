@@ -19,3 +19,14 @@ workspace/log_ngp.txt
 data/pretrained/ngp_kf.pth
 temp_nltk_data/
 *.zip
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+config.json
+credentials.json
+*_secret*
+*_token*

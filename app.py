@@ -59,8 +59,13 @@ def llm_response(message):
     with open('llm/system_prompt.md', 'r') as f:
         system_prompt = f.read()
 
+    # Get API key from environment variable
+    api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is not set. Please set it before using LLM features.")
+
     # Initialize the LLM with the system prompt
-    llm = LLM().init_model('ChatGPT', model_path='gpt-4-turbo', api_key='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')
+    llm = LLM().init_model('ChatGPT', model_path='gpt-4-turbo', api_key=api_key)
     
     # Create a list of messages including the system prompt and user message
     messages = [

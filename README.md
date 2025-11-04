@@ -27,8 +27,27 @@ pip install "git+https://github.com/facebookresearch/pytorch3d.git"
 pip install tensorflow-gpu==2.8.0
 pip install --upgrade "protobuf<=3.20.1"
 ```
-安装常见问题[FAQ](/assets/faq.md)  
+安装常见问题[FAQ](/assets/faq.md)
 linux cuda环境搭建可以参考这篇文章 https://zhuanlan.zhihu.com/p/674972886
+
+### 1.2 Configure API Keys (Important! 重要！)
+
+**⚠️ SECURITY: Never commit API keys to git!**
+
+1. Copy the environment template:
+```bash
+cp .env.example .env
+```
+
+2. Edit `.env` and add your API keys:
+```bash
+# Required for LLM chat features
+OPENAI_API_KEY=your_actual_openai_api_key_here
+```
+
+3. See [SECURITY.md](SECURITY.md) for complete security guidelines.
+
+**Note**: If you plan to use LLM chat features, you MUST set `OPENAI_API_KEY` environment variable. The application will not work without it.
 
 
 ## 2. Quick Start
